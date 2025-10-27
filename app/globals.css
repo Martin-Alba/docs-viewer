@@ -3,24 +3,219 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --border: #e5e7eb;
+  --border-hover: #d1d5db;
+  --font-geist-sans: var(--font-geist-sans);
+  --font-geist-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    --border: #374151;
+    --border-hover: #4b5563;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Estilos para react-pdf */
+.react-pdf__Page {
+  margin: 0 auto;
+  display: block;
+}
+
+.react-pdf__Page__canvas {
+  margin: 0 auto;
+  display: block;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Animaciones suaves */
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+  }
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Estilos para documentos convertidos */
+.document-content {
+  line-height: 1.6;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  max-width: 100%;
+  padding: 2rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .document-content {
+    background: #1f2937;
+    color: #f9fafb;
+  }
+}
+
+.document-content p {
+  margin-bottom: 1em;
+  text-align: justify;
+  font-size: 0.95rem;
+}
+
+/* Estilo para el título y autor */
+.document-content p:first-child {
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.5em;
+}
+
+.document-content p:nth-child(2) {
+  text-align: center;
+  font-size: 0.9rem;
+  margin-bottom: 2em;
+  color: #6b7280;
+}
+
+.document-content h1, .document-content h2, .document-content h3, 
+.document-content h4, .document-content h5, .document-content h6 {
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  color: var(--foreground);
+}
+
+.document-content h1 { font-size: 1.875rem; }
+.document-content h2 { font-size: 1.5rem; }
+.document-content h3 { font-size: 1.25rem; }
+.document-content h4 { font-size: 1.125rem; }
+
+.document-content ul, .document-content ol {
+  margin: 1em 0;
+  padding-left: 2em;
+}
+
+.document-content ul {
+  list-style-type: disc;
+}
+
+.document-content ul.bibliography-list {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.document-content ul.bibliography-list li {
+  margin-bottom: 0.8em;
+  line-height: 1.5;
+  text-align: justify;
+}
+
+.document-content ul ul {
+  list-style-type: circle;
+}
+
+.document-content ul ul ul {
+  list-style-type: square;
+}
+
+.document-content li {
+  margin-bottom: 0.5em;
+  line-height: 1.5;
+}
+
+.document-content li::marker {
+  color: var(--foreground);
+  font-size: 1em;
+}
+
+.document-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  border: 1px solid #e5e7eb;
+}
+
+.document-content th, .document-content td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5em;
+  text-align: left;
+}
+
+.document-content th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .document-content table {
+    border-color: #374151;
+  }
+  
+  .document-content th, .document-content td {
+    border-color: #374151;
+  }
+  
+  .document-content th {
+    background-color: #1f2937;
+  }
+}
+
+.document-content strong, .document-content b {
+  font-weight: 600;
+}
+
+.document-content em, .document-content i {
+  font-style: italic;
+}
+
+.document-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 1em 0;
+  border-radius: 0.375rem;
 }
