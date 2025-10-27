@@ -4,10 +4,11 @@ import { join } from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
   try {
-    const documentId = decodeURIComponent(params.documentId);
+    const { documentId: rawDocumentId } = await params;
+    const documentId = decodeURIComponent(rawDocumentId);
     const documentsPath = join(process.cwd(), 'public', 'documents');
     
     // Leer archivos en el directorio de documentos
