@@ -3,29 +3,8 @@ import { join } from 'path';
 import { promises as fs } from 'fs';
 import DocumentPageClient from './DocumentPageClient';
 
-// Generate static params for all documents
-export async function generateStaticParams() {
-  try {
-    const documentsPath = join(process.cwd(), 'public', 'documents');
-    const files = await fs.readdir(documentsPath);
-    
-    return files
-      .filter(file => {
-        const ext = file.toLowerCase();
-        return ext.endsWith('.pdf') || 
-               ext.endsWith('.docx') || 
-               ext.endsWith('.doc') || 
-               ext.endsWith('.txt') ||
-               ext.endsWith('.md');
-      })
-      .map(file => ({
-        documentId: encodeURIComponent(file)
-      }));
-  } catch (error) {
-    console.error('Error generating static params:', error);
-    return [];
-  }
-}
+// Force dynamic rendering for document pages
+export const dynamic = 'force-dynamic';
 
 interface Document {
   name: string;
