@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FileText, AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
+import { FileText, AlertCircle, ChevronRight, RefreshCw, QrCode, Download, X } from 'lucide-react';
 import Link from 'next/link';
+import QRCodeLib from 'qrcode';
 
 interface Document {
   name: string;
@@ -20,6 +21,8 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDocForQR, setSelectedDocForQR] = useState<Document | null>(null);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
 
   const fetchDocuments = async () => {
     try {
@@ -27,8 +30,16 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
       setError(null);
       
       const response = await fetch('/api/documents');
+      
+      // Check if response is ok before parsing JSON
       if (!response.ok) {
-        throw new Error('Error al cargar los documentos');
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('La respuesta no es JSON válido');
       }
       
       const data = await response.json();
@@ -44,6 +55,42 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  const handleShowQR = async (document: Document) => {
+    const documentUrl = `${window.location.origin}/document/${encodeURIComponent(document.name)}`;
+    
+    try {
+      const qrDataUrl = await QRCodeLib.toDataURL(documentUrl, {
+        width: 400,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+      
+      setQrCodeUrl(qrDataUrl);
+      setSelectedDocForQR(document);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+    }
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrCodeUrl || !selectedDocForQR) return;
+
+    const link = window.document.createElement('a');
+    link.href = qrCodeUrl;
+    link.download = `QR-${selectedDocForQR.name}.png`;
+    window.document.body.appendChild(link);
+    link.click();
+    window.document.body.removeChild(link);
+  };
+
+  const handleCloseQRModal = () => {
+    setSelectedDocForQR(null);
+    setQrCodeUrl('');
+  };
 
   const getFileIcon = (extension: string) => {
     const iconClass = "h-6 w-6 sm:h-8 sm:w-8";
@@ -163,28 +210,117 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
             // Si se proporciona onDocumentSelect, usar un botón; si no, usar Link
             if (onDocumentSelect) {
               return (
-                <button
-                  key={index}
-                  onClick={() => onDocumentSelect(document)}
-                  className="w-full text-left p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group focus:outline-none focus:bg-gray-50 dark:focus:bg-gray-700/50"
-                >
-                  <DocumentItem document={document} />
-                </button>
+                <div key={index} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      onClick={() => onDocumentSelect(document)}
+                      className="flex-1 min-w-0 text-left focus:outline-none"
+                    >
+                      <DocumentItem document={document} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShowQR(document);
+                      }}
+                      className="flex-shrink-0 p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Ver código QR"
+                      aria-label="Ver código QR"
+                    >
+                      <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </button>
+                  </div>
+                </div>
               );
             }
 
             return (
-              <Link
-                key={index}
-                href={`/document/${encodeURIComponent(document.name)}`}
-                className="block p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
-              >
-                <DocumentItem document={document} />
-              </Link>
+              <div key={index} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Link
+                    href={`/document/${encodeURIComponent(document.name)}`}
+                    className="flex-1 min-w-0"
+                  >
+                    <DocumentItem document={document} />
+                  </Link>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleShowQR(document);
+                    }}
+                    className="flex-shrink-0 p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    title="Ver código QR"
+                    aria-label="Ver código QR"
+                  >
+                    <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {selectedDocForQR && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={handleCloseQRModal}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Código QR
+              </h3>
+              <button
+                onClick={handleCloseQRModal}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2 text-sm">
+                  Documento:
+                </h4>
+                <p className="text-gray-700 dark:text-gray-300 text-sm break-all">
+                  {selectedDocForQR.name}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 text-center">
+                <div className="inline-block bg-white p-4 rounded-lg shadow-sm">
+                  {qrCodeUrl && (
+                    <img
+                      src={qrCodeUrl}
+                      alt="QR Code"
+                      className="w-64 h-64 mx-auto"
+                    />
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
+                  Escanea este código QR para acceder directamente al documento
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleDownloadQR}
+                  className="flex-1 inline-flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 space-x-2"
+                >
+                  <Download className="h-5 w-5" />
+                  <span>Descargar QR</span>
+                </button>
+                <button
+                  onClick={handleCloseQRModal}
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -208,37 +344,33 @@ function DocumentItem({ document }: { document: Document }) {
   };
 
   return (
-    <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
+    <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full">
       {/* Icono del tipo de archivo */}
-      <div className="flex-shrink-0 mt-0.5 sm:mt-0">
+      <div className="flex-shrink-0">
         {getFileIcon(document.extension)}
       </div>
       
-      {/* Información del archivo */}
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
-              {document.name}
-            </h3>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              <span>{(document.size / 1024 / 1024).toFixed(2)} MB</span>
-              <span className="hidden sm:inline">•</span>
-              <span className="uppercase font-medium px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gray-100 dark:bg-gray-600 rounded text-xs">
-                {document.extension}
-              </span>
-              <span className="hidden sm:inline">•</span>
-              <span className="text-xs">
-                {new Date(document.lastModified).toLocaleDateString('es-ES')}
-              </span>
-            </div>
-          </div>
-          
-          {/* Botón de acción - Solo visible en hover en desktop */}
-          <div className="hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-          </div>
+      {/* Información del archivo - con overflow controlado */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+          {document.name}
+        </h3>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <span className="whitespace-nowrap">{(document.size / 1024 / 1024).toFixed(2)} MB</span>
+          <span className="hidden sm:inline">•</span>
+          <span className="uppercase font-medium px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gray-100 dark:bg-gray-600 rounded text-xs whitespace-nowrap">
+            {document.extension}
+          </span>
+          <span className="hidden sm:inline">•</span>
+          <span className="text-xs whitespace-nowrap">
+            {new Date(document.lastModified).toLocaleDateString('es-ES')}
+          </span>
         </div>
+      </div>
+      
+      {/* Botón de acción - Solo visible en hover en desktop */}
+      <div className="hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
       </div>
     </div>
   );

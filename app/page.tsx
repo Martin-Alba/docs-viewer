@@ -1,13 +1,108 @@
 "use client";
 
 import DocumentList from './components/DocumentList';
+import FileUploader from './components/FileUploader';
+import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    // Mark that we have an active session on page load
+    sessionStorage.setItem('session-active', 'true');
+    
+    // Set a flag to detect page refresh vs close
+    let isRefreshing = false;
+
+    // Detect if user is refreshing (F5, Ctrl+R, etc.)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // If user is navigating within the app or refreshing, don't logout
+      // We detect refresh by checking if sessionStorage persists
+      isRefreshing = true;
+      
+      // Mark that we're potentially refreshing
+      sessionStorage.setItem('is-refreshing', 'true');
+    };
+
+    // Handle actual page unload
+    const handleUnload = () => {
+      // Small delay to see if page reloads (refresh) or actually closes
+      const wasRefreshing = sessionStorage.getItem('is-refreshing');
+      
+      if (!wasRefreshing) {
+        // Page is actually closing, not refreshing
+        sessionStorage.removeItem('session-active');
+        navigator.sendBeacon('/api/auth/logout');
+      }
+    };
+
+    // On page load, check if we came from a refresh
+    const checkIfRefreshed = () => {
+      const wasRefreshing = sessionStorage.getItem('is-refreshing');
+      if (wasRefreshing) {
+        // We refreshed, keep the session
+        sessionStorage.removeItem('is-refreshing');
+        sessionStorage.setItem('session-active', 'true');
+      }
+    };
+    
+    checkIfRefreshed();
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      // Clear session markers
+      sessionStorage.removeItem('session-active');
+      sessionStorage.removeItem('is-refreshing');
+      
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  const handleUploadSuccess = () => {
+    // Refresh document list after successful upload
+    setRefreshKey(prev => prev + 1);
+  };
+
   // Página principal solo muestra la lista de documentos
   // Cada documento tiene su propia URL individual
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 font-sans">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+        {/* Header with Actions */}
+        <div className="flex justify-between items-center mb-4 gap-3">
+          <FileUploader onUploadSuccess={handleUploadSuccess} />
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="inline-flex items-center px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white text-sm font-medium rounded-lg transition-colors duration-200 space-x-2"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{loggingOut ? 'Saliendo...' : 'Cerrar Sesión'}</span>
+          </button>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-6 sm:mb-12">
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-4">
