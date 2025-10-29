@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
       // Create session token (simple base64 encoded string)
       const sessionToken = Buffer.from(`${username}:${Date.now()}`).toString('base64');
       
-      // Set cookie
+      // Set cookie as session cookie (expires when browser closes)
       const cookieStore = await cookies();
       cookieStore.set('auth-token', sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        // No maxAge means it's a session cookie - expires when browser closes
         path: '/',
       });
 

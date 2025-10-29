@@ -4,16 +4,77 @@ import DocumentList from './components/DocumentList';
 import FileUploader from './components/FileUploader';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  useEffect(() => {
+    // Generate a unique session ID for this browser tab
+    const sessionId = Date.now().toString();
+    sessionStorage.setItem('tab-session-id', sessionId);
+
+    // Mark this tab as active in localStorage
+    localStorage.setItem('active-session', sessionId);
+
+    // Check every second if the session should be terminated
+    const intervalId = setInterval(() => {
+      const activeSession = localStorage.getItem('active-session');
+      const currentTabSession = sessionStorage.getItem('tab-session-id');
+      
+      // If localStorage was cleared or changed by another tab/window closing
+      if (!activeSession || activeSession !== currentTabSession) {
+        // Session was terminated, logout
+        handleLogout();
+      }
+    }, 1000);
+
+    // Update session timestamp on user activity
+    const updateActivity = () => {
+      localStorage.setItem('active-session', sessionId);
+      localStorage.setItem('last-activity', Date.now().toString());
+    };
+
+    // Track user activity
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keypress', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
+
+    // Handle page unload (when closing tab/window)
+    const handleUnload = () => {
+      // Remove the active session marker
+      localStorage.removeItem('active-session');
+      localStorage.removeItem('last-activity');
+      
+      // Call logout endpoint
+      navigator.sendBeacon('/api/auth/logout');
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('unload', handleUnload);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keypress', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('unload', handleUnload);
+    };
+  }, []);
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
+      // Clear session markers
+      localStorage.removeItem('active-session');
+      localStorage.removeItem('last-activity');
+      sessionStorage.removeItem('tab-session-id');
+      
       await fetch('/api/auth/logout', {
         method: 'POST',
       });
