@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { put } from '@vercel/blob';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,40 +37,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create documents directory if it doesn't exist
-    const documentsPath = join(process.cwd(), 'public', 'documents');
-    if (!existsSync(documentsPath)) {
-      await mkdir(documentsPath, { recursive: true });
-    }
+    // Upload to Vercel Blob
+    const blob = await put(file.name, file, {
+      access: 'public',
+      addRandomSuffix: true, // Adds random suffix to avoid duplicates
+    });
 
-    // Get file extension and create unique filename if needed
-    const fileName = file.name;
-    let finalFileName = fileName;
-    let filePath = join(documentsPath, finalFileName);
-    
-    // Check if file already exists, if so, add a number suffix
-    let counter = 1;
-    while (existsSync(filePath)) {
-      const nameParts = fileName.split('.');
-      const extension = nameParts.pop();
-      const baseName = nameParts.join('.');
-      finalFileName = `${baseName}-${counter}.${extension}`;
-      filePath = join(documentsPath, finalFileName);
-      counter++;
-    }
-
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    // Generate document URL
-    const documentUrl = `/document/${encodeURIComponent(finalFileName)}`;
+    // Generate document URL - we'll store blob URL in a database or use it directly
+    const documentUrl = `/document/${encodeURIComponent(file.name)}`;
 
     return NextResponse.json({
       success: true,
-      fileName: finalFileName,
+      fileName: file.name,
       documentUrl: documentUrl,
+      blobUrl: blob.url, // The actual URL where the file is stored
       message: 'Archivo cargado exitosamente'
     });
 

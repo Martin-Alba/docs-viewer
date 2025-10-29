@@ -11,16 +11,20 @@ export async function POST(request: NextRequest) {
 
     // Validate credentials
     if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      // Create session token (simple base64 encoded string)
-      const sessionToken = Buffer.from(`${username}:${Date.now()}`).toString('base64');
+      // Create session token with timestamp
+      const sessionData = {
+        username,
+        loginTime: Date.now(),
+      };
+      const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
       
-      // Set cookie as session cookie (expires when browser closes)
+      // Set cookie with 30 minutes expiration
       const cookieStore = await cookies();
       cookieStore.set('auth-token', sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        // No maxAge means it's a session cookie - expires when browser closes
+        maxAge: 30 * 60, // 30 minutes in seconds
         path: '/',
       });
 

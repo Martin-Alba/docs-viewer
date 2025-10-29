@@ -12,62 +12,49 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Mark that we have an active session on page load
-    sessionStorage.setItem('session-active', 'true');
-    
-    // Set a flag to detect page refresh vs close
-    let isRefreshing = false;
+    // Renovar sesión cada 25 minutos si el usuario está activo
+    // (la cookie expira en 30 minutos, así que renovamos antes)
+    let activityTimer: NodeJS.Timeout;
+    let lastActivity = Date.now();
 
-    // Detect if user is refreshing (F5, Ctrl+R, etc.)
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // If user is navigating within the app or refreshing, don't logout
-      // We detect refresh by checking if sessionStorage persists
-      isRefreshing = true;
-      
-      // Mark that we're potentially refreshing
-      sessionStorage.setItem('is-refreshing', 'true');
-    };
-
-    // Handle actual page unload
-    const handleUnload = () => {
-      // Small delay to see if page reloads (refresh) or actually closes
-      const wasRefreshing = sessionStorage.getItem('is-refreshing');
-      
-      if (!wasRefreshing) {
-        // Page is actually closing, not refreshing
-        sessionStorage.removeItem('session-active');
-        navigator.sendBeacon('/api/auth/logout');
+    const renewSession = async () => {
+      try {
+        // Solo renovar si hubo actividad en los últimos 25 minutos
+        const timeSinceActivity = Date.now() - lastActivity;
+        if (timeSinceActivity < 25 * 60 * 1000) {
+          await fetch('/api/auth/renew', { method: 'POST' });
+        }
+      } catch (error) {
+        console.error('Error renewing session:', error);
       }
     };
 
-    // On page load, check if we came from a refresh
-    const checkIfRefreshed = () => {
-      const wasRefreshing = sessionStorage.getItem('is-refreshing');
-      if (wasRefreshing) {
-        // We refreshed, keep the session
-        sessionStorage.removeItem('is-refreshing');
-        sessionStorage.setItem('session-active', 'true');
-      }
-    };
-    
-    checkIfRefreshed();
+    // Renovar sesión cada 25 minutos
+    const renewInterval = setInterval(renewSession, 25 * 60 * 1000);
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('unload', handleUnload);
+    // Actualizar timestamp de última actividad
+    const updateActivity = () => {
+      lastActivity = Date.now();
+    };
+
+    // Detectar actividad del usuario
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('scroll', updateActivity);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('unload', handleUnload);
+      clearInterval(renewInterval);
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('scroll', updateActivity);
     };
   }, []);
 
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      // Clear session markers
-      sessionStorage.removeItem('session-active');
-      sessionStorage.removeItem('is-refreshing');
-      
       await fetch('/api/auth/logout', {
         method: 'POST',
       });
