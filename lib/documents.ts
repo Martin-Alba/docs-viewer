@@ -2,7 +2,14 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 // Simple JSON database for document metadata
-const DB_PATH = path.join(process.cwd(), 'data', 'documents.json');
+// In production (Vercel), use /tmp which is writable
+const getDBPath = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const baseDir = isProduction ? '/tmp' : process.cwd();
+  return path.join(baseDir, 'data', 'documents.json');
+};
+
+const DB_PATH = getDBPath();
 
 export interface DocumentMetadata {
   id: string;
@@ -18,7 +25,9 @@ interface DocumentsDB {
 
 // Ensure data directory exists
 async function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), 'data');
+  const isProduction = process.env.NODE_ENV === 'production';
+  const baseDir = isProduction ? '/tmp' : process.cwd();
+  const dataDir = path.join(baseDir, 'data');
   try {
     await fs.mkdir(dataDir, { recursive: true });
   } catch (error) {
