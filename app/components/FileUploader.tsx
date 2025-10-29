@@ -81,7 +81,11 @@ export default function FileUploader({ onUploadSuccess }: { onUploadSuccess?: ()
           onUploadSuccess();
         }
       } else {
-        setError(data.error || 'Error al cargar el archivo');
+        // Show more detailed error if available
+        const errorMsg = data.details 
+          ? `${data.error}: ${data.details}` 
+          : data.error || 'Error al cargar el archivo';
+        setError(errorMsg);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión al cargar el archivo');
