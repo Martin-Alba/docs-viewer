@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FileText, AlertCircle, ChevronRight, RefreshCw, QrCode, Download, X } from 'lucide-react';
+import { FileText, AlertCircle, ChevronRight, RefreshCw, QrCode, Download, X, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import QRCodeLib from 'qrcode';
 
@@ -11,6 +11,8 @@ interface Document {
   extension: string;
   lastModified: string;
   url: string;
+  id?: string; // The actual document ID for linking
+  isLocal?: boolean; // Whether it's a local file or blob storage
 }
 
 interface DocumentListProps {
@@ -23,6 +25,9 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedDocForQR, setSelectedDocForQR] = useState<Document | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const fetchDocuments = async () => {
     try {
@@ -57,7 +62,8 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   }, []);
 
   const handleShowQR = async (document: Document) => {
-    const documentUrl = `${window.location.origin}/document/${encodeURIComponent(document.name)}`;
+    const documentId = document.id || document.name;
+    const documentUrl = `${window.location.origin}/document/${encodeURIComponent(documentId)}`;
     
     try {
       const qrDataUrl = await QRCodeLib.toDataURL(documentUrl, {
@@ -90,6 +96,53 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   const handleCloseQRModal = () => {
     setSelectedDocForQR(null);
     setQrCodeUrl('');
+  };
+
+  const handleDelete = async (document: Document) => {
+    const documentId = document.id || document.name;
+    
+    setDeletingId(documentId);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch(`/api/documents/${encodeURIComponent(documentId)}/delete`, {
+        method: 'DELETE',
+      });
+
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('La respuesta no es JSON válido');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al eliminar el documento');
+      }
+
+      // Refresh the document list
+      await fetchDocuments();
+      
+      // Close modal
+      setDocumentToDelete(null);
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      setDeleteError(error instanceof Error ? error.message : 'Error al eliminar el documento');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleShowDeleteModal = (document: Document) => {
+    setDocumentToDelete(document);
+    setDeleteError(null);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (deletingId) return; // Don't close while deleting
+    setDocumentToDelete(null);
+    setDeleteError(null);
   };
 
   const getFileIcon = (extension: string) => {
@@ -211,7 +264,7 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
             if (onDocumentSelect) {
               return (
                 <div key={index} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <button
                       onClick={() => onDocumentSelect(document)}
                       className="flex-1 min-w-0 text-left focus:outline-none"
@@ -229,6 +282,20 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
                     >
                       <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
                     </button>
+                    {!document.isLocal && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShowDeleteModal(document);
+                        }}
+                        disabled={deletingId === (document.id || document.name)}
+                        className="flex-shrink-0 p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                        title="Eliminar documento"
+                        aria-label="Eliminar documento"
+                      >
+                        <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -236,9 +303,9 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
 
             return (
               <div key={index} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <Link
-                    href={`/document/${encodeURIComponent(document.name)}`}
+                    href={`/document/${encodeURIComponent(document.id || document.name)}`}
                     className="flex-1 min-w-0"
                   >
                     <DocumentItem document={document} />
@@ -254,6 +321,20 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
                   >
                     <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
+                  {!document.isLocal && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleShowDeleteModal(document);
+                      }}
+                      disabled={deletingId === (document.id || document.name)}
+                      className="flex-shrink-0 p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                      title="Eliminar documento"
+                      aria-label="Eliminar documento"
+                    >
+                      <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -317,6 +398,94 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
                   Cerrar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {documentToDelete && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" 
+          onClick={handleCloseDeleteModal}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  Eliminar Documento
+                </h3>
+              </div>
+              <button
+                onClick={handleCloseDeleteModal}
+                disabled={!!deletingId}
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
+                aria-label="Cerrar"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
+                ¿Estás seguro de que quieres eliminar este documento?
+              </p>
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                  {documentToDelete.name}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {documentToDelete.extension.toUpperCase()} • {new Date(documentToDelete.lastModified).toLocaleDateString('es-ES')}
+                </p>
+              </div>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-3 font-medium">
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {deleteError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {deleteError}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCloseDeleteModal}
+                disabled={!!deletingId}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => documentToDelete && handleDelete(documentToDelete)}
+                disabled={!!deletingId}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingId ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    <span>Eliminar</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

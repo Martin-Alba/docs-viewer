@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 30 * 60, // 30 minutes in seconds
+        maxAge: 5 * 60, // 5 minutes in seconds
         path: '/',
       });
 

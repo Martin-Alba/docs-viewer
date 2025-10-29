@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
-import { join } from 'path';
-import { promises as fs } from 'fs';
 import DocumentPageClient from './DocumentPageClient';
+import { getDocument, scanLocalDocuments } from '@/lib/documents';
 
 // Force dynamic rendering for document pages
 export const dynamic = 'force-dynamic';
@@ -23,25 +22,22 @@ export default async function DocumentPage({
   const documentId = decodeURIComponent(rawDocumentId);
   
   try {
-    const documentsPath = join(process.cwd(), 'public', 'documents');
-    const filePath = join(documentsPath, documentId);
+    // Scan local documents to ensure they're in the database
+    await scanLocalDocuments();
     
-    // Check if file exists
-    try {
-      await fs.access(filePath);
-    } catch {
+    // Get document metadata from database
+    const docMetadata = await getDocument(documentId);
+    
+    if (!docMetadata) {
       notFound();
     }
     
-    const stats = await fs.stat(filePath);
-    const extension = documentId.split('.').pop()?.toLowerCase() || '';
-    
     const document: Document = {
-      name: documentId,
-      size: stats.size,
-      extension: extension,
-      lastModified: stats.mtime.toISOString(),
-      url: `/documents/${encodeURIComponent(documentId)}`
+      name: docMetadata.fileName,
+      size: 0, // We don't store size (can add if needed)
+      extension: docMetadata.fileName.split('.').pop()?.toLowerCase() || '',
+      lastModified: docMetadata.uploadedAt,
+      url: docMetadata.blobUrl
     };
 
     return <DocumentPageClient document={document} />;

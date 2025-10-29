@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, stat } from 'fs/promises';
-import { join } from 'path';
+import { getDocument } from '@/lib/documents';
 
 export async function GET(
   request: NextRequest,
@@ -9,38 +8,26 @@ export async function GET(
   try {
     const { documentId: rawDocumentId } = await params;
     const documentId = decodeURIComponent(rawDocumentId);
-    const documentsPath = join(process.cwd(), 'public', 'documents');
     
-    // Leer archivos en el directorio de documentos
-    const files = await readdir(documentsPath);
+    // Try to get document from database
+    const docMetadata = await getDocument(documentId);
     
-    // Filtrar solo archivos soportados
-    const supportedExtensions = ['.pdf', '.doc', '.docx', '.md'];
-    
-    for (const file of files) {
-      const filePath = join(documentsPath, file);
-      const fileStats = await stat(filePath);
+    if (docMetadata) {
+      const extension = docMetadata.fileName.toLowerCase().substring(docMetadata.fileName.lastIndexOf('.') + 1);
       
-      if (fileStats.isFile()) {
-        const extension = file.toLowerCase().substring(file.lastIndexOf('.'));
-        
-        if (supportedExtensions.includes(extension) && 
-            (file === documentId || file.replace(/\s+/g, '-').toLowerCase() === documentId.toLowerCase())) {
-          
-          const document = {
-            name: file,
-            size: fileStats.size,
-            extension: extension.substring(1), // Remover el punto
-            lastModified: fileStats.mtime,
-            url: `/documents/${file}`, // URL pública para acceder al archivo
-          };
-          
-          return NextResponse.json({ 
-            success: true, 
-            document 
-          });
-        }
-      }
+      const document = {
+        name: docMetadata.fileName,
+        size: 0, // We don't store size in metadata (can add if needed)
+        extension: extension,
+        lastModified: new Date(docMetadata.uploadedAt),
+        url: docMetadata.blobUrl, // Either blob URL or /documents/file.pdf
+        isLocal: docMetadata.isLocal
+      };
+      
+      return NextResponse.json({ 
+        success: true, 
+        document 
+      });
     }
     
     // Si no se encuentra el documento

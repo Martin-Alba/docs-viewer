@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
+import { addDocument } from '@/lib/documents';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -43,8 +44,22 @@ export async function POST(request: NextRequest) {
       addRandomSuffix: true, // Adds random suffix to avoid duplicates
     });
 
-    // Generate document URL - we'll store blob URL in a database or use it directly
-    const documentUrl = `/document/${encodeURIComponent(file.name)}`;
+    // Generate unique document ID from blob URL
+    const urlParts = blob.url.split('/');
+    const blobFileName = urlParts[urlParts.length - 1];
+    const documentId = blobFileName;
+
+    // Store document metadata in database
+    await addDocument({
+      id: documentId,
+      fileName: file.name,
+      blobUrl: blob.url,
+      uploadedAt: new Date().toISOString(),
+      isLocal: false
+    });
+
+    // Generate document URL - use the documentId (blob filename)
+    const documentUrl = `/document/${encodeURIComponent(documentId)}`;
 
     return NextResponse.json({
       success: true,
