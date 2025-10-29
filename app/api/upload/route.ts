@@ -4,6 +4,15 @@ import { addDocument } from '@/lib/documents';
 
 export async function POST(request: Request) {
   try {
+    // Verify Blob token exists
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN not configured');
+      return NextResponse.json(
+        { error: 'Configuración del servidor incorrecta. Por favor contacta al administrador.' },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -38,11 +47,15 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log('Uploading to Blob:', { name: file.name, size: file.size, type: file.type });
+
     // Upload to Vercel Blob
     const blob = await put(file.name, file, {
       access: 'public',
       addRandomSuffix: true, // Adds random suffix to avoid duplicates
     });
+
+    console.log('Blob upload successful:', blob.url);
 
     // Generate unique document ID from blob URL
     const urlParts = blob.url.split('/');
@@ -71,8 +84,16 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Upload error:', error);
+    
+    // Return more specific error message
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
     return NextResponse.json(
-      { error: 'Error al procesar el archivo' },
+      { 
+        error: 'Error al procesar el archivo',
+        details: errorMessage,
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }
