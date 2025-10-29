@@ -1,6 +1,7 @@
 "use client";
 
 import DocumentList from './components/DocumentList';
+import FileUploader from './components/FileUploader';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -8,6 +9,7 @@ import { useState } from 'react';
 export default function Home() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -24,13 +26,19 @@ export default function Home() {
     }
   };
 
+  const handleUploadSuccess = () => {
+    // Refresh document list after successful upload
+    setRefreshKey(prev => prev + 1);
+  };
+
   // Página principal solo muestra la lista de documentos
   // Cada documento tiene su propia URL individual
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 font-sans">
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        {/* Header with Logout */}
-        <div className="flex justify-end mb-4">
+        {/* Header with Actions */}
+        <div className="flex justify-between items-center mb-4 gap-3">
+          <FileUploader onUploadSuccess={handleUploadSuccess} />
           <button
             onClick={handleLogout}
             disabled={loggingOut}
