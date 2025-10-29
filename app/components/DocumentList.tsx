@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { FileText, AlertCircle, ChevronRight, RefreshCw, QrCode, Download, X, Trash2 } from 'lucide-react';
+import { FileText, AlertCircle, ChevronRight, RefreshCw, QrCode, Download, X, Trash2, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 import QRCodeLib from 'qrcode';
 
@@ -28,6 +28,7 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
 
   const fetchDocuments = async () => {
     try {
@@ -96,6 +97,26 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
   const handleCloseQRModal = () => {
     setSelectedDocForQR(null);
     setQrCodeUrl('');
+    setCopied(false); // Reset copied state when closing modal
+  };
+
+  const handleCopyURL = async () => {
+    if (!selectedDocForQR) return;
+    
+    const documentId = selectedDocForQR.id || selectedDocForQR.name;
+    const documentUrl = `${window.location.origin}/document/${encodeURIComponent(documentId)}`;
+    
+    try {
+      await navigator.clipboard.writeText(documentUrl);
+      setCopied(true);
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
   };
 
   const handleDelete = async (document: Document) => {
@@ -383,20 +404,43 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
                 </p>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3">
                 <button
-                  onClick={handleDownloadQR}
-                  className="flex-1 inline-flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 space-x-2"
+                  onClick={handleCopyURL}
+                  className={`inline-flex items-center justify-center px-4 py-3 font-medium rounded-lg transition-all duration-200 space-x-2 ${
+                    copied
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                  }`}
                 >
-                  <Download className="h-5 w-5" />
-                  <span>Descargar QR</span>
+                  {copied ? (
+                    <>
+                      <Check className="h-5 w-5 animate-bounce" />
+                      <span>¡URL Copiada!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-5 w-5" />
+                      <span>Copiar URL</span>
+                    </>
+                  )}
                 </button>
-                <button
-                  onClick={handleCloseQRModal}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-                >
-                  Cerrar
-                </button>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDownloadQR}
+                    className="flex-1 inline-flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 space-x-2"
+                  >
+                    <Download className="h-5 w-5" />
+                    <span>Descargar QR</span>
+                  </button>
+                  <button
+                    onClick={handleCloseQRModal}
+                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
             </div>
           </div>

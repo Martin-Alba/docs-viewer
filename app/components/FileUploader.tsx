@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Upload, X, FileText, Download } from 'lucide-react';
+import { Upload, X, FileText, Download, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 
 interface UploadedDocument {
@@ -15,6 +15,7 @@ export default function FileUploader({ onUploadSuccess }: { onUploadSuccess?: ()
   const [uploading, setUploading] = useState(false);
   const [uploadedDoc, setUploadedDoc] = useState<UploadedDocument | null>(null);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,6 +109,23 @@ export default function FileUploader({ onUploadSuccess }: { onUploadSuccess?: ()
     setIsOpen(false);
     setUploadedDoc(null);
     setError('');
+    setCopied(false); // Reset copied state
+  };
+
+  const handleCopyURL = async () => {
+    if (!uploadedDoc) return;
+    
+    try {
+      await navigator.clipboard.writeText(uploadedDoc.url);
+      setCopied(true);
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+    }
   };
 
   return (
@@ -205,12 +223,24 @@ export default function FileUploader({ onUploadSuccess }: { onUploadSuccess?: ()
                         className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-sm"
                       />
                       <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(uploadedDoc.url);
-                        }}
-                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded"
+                        onClick={handleCopyURL}
+                        className={`px-3 py-2 text-sm rounded font-medium transition-all duration-200 flex items-center gap-2 ${
+                          copied
+                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
                       >
-                        Copiar
+                        {copied ? (
+                          <>
+                            <Check className="h-4 w-4 animate-bounce" />
+                            <span>¡Copiado!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-4 w-4" />
+                            <span>Copiar</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
