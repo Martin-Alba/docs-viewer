@@ -25,6 +25,12 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password }),
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Error en el servidor. Por favor, intenta de nuevo.');
+      }
+
       const data = await response.json();
 
       if (response.ok) {
@@ -35,7 +41,7 @@ export default function LoginPage() {
         setError(data.error || 'Credenciales inválidas');
       }
     } catch (err) {
-      setError('Error de conexión');
+      setError(err instanceof Error ? err.message : 'Error de conexión');
       console.error('Login error:', err);
     } finally {
       setLoading(false);

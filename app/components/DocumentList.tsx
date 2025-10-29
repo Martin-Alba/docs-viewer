@@ -30,8 +30,16 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
       setError(null);
       
       const response = await fetch('/api/documents');
+      
+      // Check if response is ok before parsing JSON
       if (!response.ok) {
-        throw new Error('Error al cargar los documentos');
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('La respuesta no es JSON válido');
       }
       
       const data = await response.json();
@@ -203,10 +211,10 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
             if (onDocumentSelect) {
               return (
                 <div key={index} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <button
                       onClick={() => onDocumentSelect(document)}
-                      className="flex-1 text-left focus:outline-none"
+                      className="flex-1 min-w-0 text-left focus:outline-none"
                     >
                       <DocumentItem document={document} />
                     </button>
@@ -217,8 +225,9 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
                       }}
                       className="flex-shrink-0 p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                       title="Ver código QR"
+                      aria-label="Ver código QR"
                     >
-                      <QrCode className="h-5 w-5" />
+                      <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
                     </button>
                   </div>
                 </div>
@@ -227,10 +236,10 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
 
             return (
               <div key={index} className="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <Link
                     href={`/document/${encodeURIComponent(document.name)}`}
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                   >
                     <DocumentItem document={document} />
                   </Link>
@@ -241,8 +250,9 @@ export default function DocumentList({ onDocumentSelect }: DocumentListProps) {
                     }}
                     className="flex-shrink-0 p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     title="Ver código QR"
+                    aria-label="Ver código QR"
                   >
-                    <QrCode className="h-5 w-5" />
+                    <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
                   </button>
                 </div>
               </div>
@@ -334,37 +344,33 @@ function DocumentItem({ document }: { document: Document }) {
   };
 
   return (
-    <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
+    <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full">
       {/* Icono del tipo de archivo */}
-      <div className="flex-shrink-0 mt-0.5 sm:mt-0">
+      <div className="flex-shrink-0">
         {getFileIcon(document.extension)}
       </div>
       
-      {/* Información del archivo */}
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
-              {document.name}
-            </h3>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              <span>{(document.size / 1024 / 1024).toFixed(2)} MB</span>
-              <span className="hidden sm:inline">•</span>
-              <span className="uppercase font-medium px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gray-100 dark:bg-gray-600 rounded text-xs">
-                {document.extension}
-              </span>
-              <span className="hidden sm:inline">•</span>
-              <span className="text-xs">
-                {new Date(document.lastModified).toLocaleDateString('es-ES')}
-              </span>
-            </div>
-          </div>
-          
-          {/* Botón de acción - Solo visible en hover en desktop */}
-          <div className="hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-          </div>
+      {/* Información del archivo - con overflow controlado */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+          {document.name}
+        </h3>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <span className="whitespace-nowrap">{(document.size / 1024 / 1024).toFixed(2)} MB</span>
+          <span className="hidden sm:inline">•</span>
+          <span className="uppercase font-medium px-1.5 py-0.5 sm:px-2 sm:py-1 bg-gray-100 dark:bg-gray-600 rounded text-xs whitespace-nowrap">
+            {document.extension}
+          </span>
+          <span className="hidden sm:inline">•</span>
+          <span className="text-xs whitespace-nowrap">
+            {new Date(document.lastModified).toLocaleDateString('es-ES')}
+          </span>
         </div>
+      </div>
+      
+      {/* Botón de acción - Solo visible en hover en desktop */}
+      <div className="hidden sm:flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
       </div>
     </div>
   );

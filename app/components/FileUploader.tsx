@@ -51,6 +51,12 @@ export default function FileUploader({ onUploadSuccess }: { onUploadSuccess?: ()
         body: formData,
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Error en el servidor. Por favor, intenta de nuevo.');
+      }
+
       const data = await response.json();
 
       if (response.ok) {
@@ -77,7 +83,7 @@ export default function FileUploader({ onUploadSuccess }: { onUploadSuccess?: ()
         setError(data.error || 'Error al cargar el archivo');
       }
     } catch (err) {
-      setError('Error de conexión al cargar el archivo');
+      setError(err instanceof Error ? err.message : 'Error de conexión al cargar el archivo');
       console.error('Upload error:', err);
     } finally {
       setUploading(false);
