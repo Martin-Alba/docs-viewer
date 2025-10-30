@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { list } from '@vercel/blob';
 
 // Simple JSON database for document metadata
 // In production (Vercel), use /tmp which is writable
@@ -119,5 +120,46 @@ export async function scanLocalDocuments(): Promise<void> {
   } catch (error) {
     // Directory doesn't exist or is empty
     console.log('No local documents directory found');
+  }
+}
+
+// Sync Blob Storage documents to database
+export async function syncBlobDocuments(): Promise<void> {
+  // Only run if Blob token is configured
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  try {
+    const db = await readDB();
+    
+    // List all blobs from Vercel Blob Storage
+    const { blobs } = await list();
+    
+    for (const blob of blobs) {
+      // Extract the blob ID from the URL (the filename with random suffix)
+      const urlParts = blob.url.split('/');
+      const blobId = urlParts[urlParts.length - 1];
+      
+      // Check if already in DB
+      const existing = db.documents.find(doc => doc.id === blobId);
+      
+      if (!existing) {
+        // Extract original filename from pathname or use blobId
+        const fileName = blob.pathname?.split('/').pop() || blobId;
+        
+        db.documents.push({
+          id: blobId,
+          fileName: fileName,
+          blobUrl: blob.url,
+          uploadedAt: blob.uploadedAt.toISOString(),
+          isLocal: false
+        });
+      }
+    }
+    
+    await writeDB(db);
+  } catch (error) {
+    console.error('Error syncing blob documents:', error);
   }
 }

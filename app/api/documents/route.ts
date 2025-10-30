@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllDocuments, scanLocalDocuments } from '@/lib/documents';
+import { getAllDocuments, scanLocalDocuments, syncBlobDocuments } from '@/lib/documents';
 
 export async function GET() {
   try {
     // Scan local documents directory to ensure they're in the database
     await scanLocalDocuments();
+    
+    // Sync blob storage documents to database
+    await syncBlobDocuments();
     
     // Get all documents from database
     const allDocs = await getAllDocuments();

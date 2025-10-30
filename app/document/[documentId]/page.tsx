@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import DocumentPageClient from './DocumentPageClient';
-import { getDocument, scanLocalDocuments, addDocument } from '@/lib/documents';
+import { getDocument, scanLocalDocuments, syncBlobDocuments, addDocument } from '@/lib/documents';
 import { head } from '@vercel/blob';
 
 // Force dynamic rendering for document pages
@@ -25,6 +25,9 @@ export default async function DocumentPage({
   try {
     // Scan local documents to ensure they're in the database
     await scanLocalDocuments();
+    
+    // Sync blob storage documents
+    await syncBlobDocuments();
     
     // Get document metadata from database
     let docMetadata = await getDocument(documentId);
