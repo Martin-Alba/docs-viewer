@@ -136,6 +136,21 @@ export async function syncBlobDocuments(): Promise<void> {
     // List all blobs from Vercel Blob Storage
     const { blobs } = await list();
     
+    // Create a Set of existing blob IDs for fast lookup
+    const existingBlobIds = new Set(blobs.map(blob => {
+      const urlParts = blob.url.split('/');
+      return urlParts[urlParts.length - 1];
+    }));
+    
+    // Remove blob documents from DB that no longer exist in Blob Storage
+    db.documents = db.documents.filter(doc => {
+      // Keep local documents
+      if (doc.isLocal) return true;
+      // Keep blob documents that still exist
+      return existingBlobIds.has(doc.id);
+    });
+    
+    // Add new blobs to database
     for (const blob of blobs) {
       // Extract the blob ID from the URL (the filename with random suffix)
       const urlParts = blob.url.split('/');

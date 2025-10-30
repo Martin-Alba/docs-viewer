@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllDocuments, scanLocalDocuments, syncBlobDocuments } from '@/lib/documents';
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     // Scan local documents directory to ensure they're in the database
@@ -26,11 +30,20 @@ export async function GET() {
     // Sort by upload date (most recent first)
     documents.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
     
-    return NextResponse.json({ 
-      success: true, 
-      documents,
-      total: documents.length 
-    });
+    return NextResponse.json(
+      { 
+        success: true, 
+        documents,
+        total: documents.length 
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      }
+    );
     
   } catch (error) {
     console.error('Error reading documents:', error);
