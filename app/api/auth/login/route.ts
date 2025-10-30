@@ -2,18 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 // Hardcoded credentials
-const VALID_USERNAME = 'Gabrielafs';
+const VALID_USERNAME = 'gabrielafs';
 const VALID_PASSWORD = '220825';
 
 export async function POST(request: NextRequest) {
   try {
     const { username, password } = await request.json();
 
+    // Normalize username to lowercase for case-insensitive comparison
+    const normalizedUsername = username?.toLowerCase();
+
     // Validate credentials
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+    if (normalizedUsername === VALID_USERNAME && password === VALID_PASSWORD) {
       // Create session token with timestamp
       const sessionData = {
-        username,
+        username: normalizedUsername, // Use normalized username
         loginTime: Date.now(),
       };
       const sessionToken = Buffer.from(JSON.stringify(sessionData)).toString('base64');
